@@ -32,6 +32,8 @@ python observe/spool-analyzer/bluerock_spool.py mcp some-events.ndjson
 | `imports` | Top packages by import count with installed versions, modules whose SHA-256 changed since the last run (`hash_changed=true`). |
 | `timeline` | Chronological view restricted to interesting events (lifecycle + MCP + dlopen). `--limit N` to cap rows. |
 | `anomalies` | Heuristic flags suitable for triage. See below. |
+| `tail` | Live tail of the spool (poll-based) with inline anomaly tags and ANSI color when stdout is a TTY. `--from-start`, `--only-anomalies`, `--poll`, `--no-color`. |
+| `html` | Self-contained HTML report (no JS, inline CSS) covering summary, event mix, MCP traffic, imports, and anomalies. `-o report.html` or stdout. |
 
 ### Anomaly heuristics
 
@@ -43,6 +45,11 @@ human to look at, not automated verdicts.
 - `HIGH` &nbsp;`mcp tools/call ... shell injection` — the JSON-encoded
   arguments of a `tools/call` request match shell metacharacters, path
   traversal, or `rm -rf` patterns.
+- `HIGH` &nbsp;`mcp tools/call ... SQL injection` — the arguments match
+  classic SQLi tells (`' OR '1'='1`, `UNION SELECT`, `'--`, `DROP TABLE`).
+- `HIGH` &nbsp;`mcp tool response contains secret-like value` — a tool
+  *response* (server -> client) contains a string shaped like an API key,
+  bearer token, or `sk-...` credential. Treat as a possible exfiltration.
 - `MEDIUM` `mcp tools/call ... secret-like value` — arguments contain strings
   that look like API keys, bearer tokens, or AWS access keys.
 - `MEDIUM` `import hash change` — a module's on-disk SHA-256 differs from the
@@ -67,6 +74,30 @@ python observe/spool-analyzer/bluerock_spool.py anomalies suspicious-run.ndjson
 
 # Replay against the bundled sample
 python observe/spool-analyzer/bluerock_spool.py summary observe/deploy/spool/
+
+# Watch a live spool (Ctrl+C to stop)
+python observe/spool-analyzer/bluerock_spool.py tail --only-anomalies
+
+# Render an HTML report you can open in a browser or share
+python observe/spool-analyzer/bluerock_spool.py html ~/.bluerock/event-spool/ -o report.html
+```
+
+## Pairing with the vulnerable demo server
+
+`examples/mcp/vulnerable_server.py` is a deliberately-flawed FastMCP server
+(shell injection, path traversal, SQL injection, fake API key). Run it under
+`bluepython --oss` and watch this analyzer light up:
+
+```bash
+# Terminal 1: launch the target under the sensor
+python -m bluepython --oss examples/mcp/vulnerable_server.py \
+    --i-know-this-is-vulnerable
+
+# Terminal 2: drive the tools (e.g. via the bundled mcp_client.py with
+# crafted arguments) — see examples/mcp/README.md.
+
+# Terminal 3: live anomalies
+python observe/spool-analyzer/bluerock_spool.py tail --only-anomalies
 ```
 
 ## Tests

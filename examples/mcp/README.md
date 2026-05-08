@@ -12,6 +12,7 @@ BlueRock MCP monitoring examples demonstrating runtime protection across all thr
 | `mcp_linux_admin.py` | sse | Shell command execution server |
 | `weatherMCP-server.py` | stdio | Real-world async server (NWS weather API) |
 | `weatherMCP-client.py` | stdio | LLM-powered weather client (requires ollama) |
+| `vulnerable_server.py` | stdio/sse/http | Deliberately-vulnerable demo target (shell, path, SQLi, fake secret). Pair with `observe/spool-analyzer` for end-to-end detection demos. |
 
 ## Quick Start
 
